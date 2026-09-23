@@ -1,14 +1,12 @@
+streamlit
 langchain
 langchain-core
 langchain-community
 langgraph
-langchain-google-genai
+langchain-groq
 tavily-python
 beautifulsoup4
 requests
 python-dotenv
-httpx
-aiohttp
+rich
 pydantic
-lxml
-richlangchain-groq
