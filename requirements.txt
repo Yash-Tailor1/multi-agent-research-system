@@ -1,0 +1,14 @@
+langchain
+langchain-core
+langchain-community
+langgraph
+langchain-google-genai
+tavily-python
+beautifulsoup4
+requests
+python-dotenv
+httpx
+aiohttp
+pydantic
+lxml
+rich

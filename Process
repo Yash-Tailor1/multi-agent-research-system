@@ -1,0 +1,11 @@
+Step 1 - Enviroment setup create a virtual enviroment installl all the librarie from r3equirements.txt and create .env file with your openai and tavily keys.
+
+step 2 - create tools.py we will build 2 custom toolws using @tool decoraotr. first the web_search tool which talks to the tavily API and fetches live search results from the internet. Secont the scrape_url tool which takes the url visits that page and extracts clean readable text from it using beautifulsoup
+
+step 3-  create agents.py this is the heart of the project we will build 4 things here. first the search agent using create_react_agent + AgentExecuotr which will use the web_search tool.
+
+Second the Reader agent using the same pattern but with the scrape url_tool.
+
+THirt the writer chain using the midern LCEL pipe syntax prompt | LLM | Stroutputparser() which takes the research and writes the full report 
+
+Fourth the critic chain again using LCEL pipeline which readcs the report and gives a scores and feedback 
