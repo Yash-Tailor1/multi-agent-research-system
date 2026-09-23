@@ -11,4 +11,4 @@ httpx
 aiohttp
 pydantic
 lxml
-rich
+richlangchain-groq
