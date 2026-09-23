@@ -1,7 +1,10 @@
-
 import streamlit as st
 
-from pipeline import run_research_pipeline
+from pipeline import (
+    run_research_pipeline,
+    PipelineStageError
+)
+
 from history import (
     get_search_history,
     get_search,
@@ -31,32 +34,13 @@ if "selected_search_id" not in st.session_state:
 
 
 # ============================================================
-# CSS
+# TITLE
 # ============================================================
 
-st.markdown(
-    """
-    <style>
+st.title("🔎 Multi-Agent Research System")
 
-    .main-title {
-        font-size: 42px;
-        font-weight: 700;
-        margin-bottom: 5px;
-    }
-
-    .subtitle {
-        font-size: 17px;
-        color: #6b7280;
-        margin-bottom: 25px;
-    }
-
-    .history-item {
-        padding: 8px 0;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
+st.caption(
+    "Tavily + BeautifulSoup + Groq Agents + LCEL"
 )
 
 
@@ -66,11 +50,8 @@ st.markdown(
 
 with st.sidebar:
 
-    st.title("🔎 Research History")
+    st.header("📚 Research History")
 
-    st.caption("Previous research searches")
-
-    # New research button
     if st.button(
         "➕ New Research",
         use_container_width=True
@@ -89,18 +70,15 @@ with st.sidebar:
 
     else:
 
-        for search_id, topic, created_at in history:
+        for search_id, topic_name, created_at in history:
 
-            # Shorten long topics for sidebar
-            display_topic = topic
+            display_topic = topic_name
 
-            if len(display_topic) > 38:
-                display_topic = display_topic[:38] + "..."
-
-            label = f"🔎 {display_topic}"
+            if len(display_topic) > 35:
+                display_topic = display_topic[:35] + "..."
 
             if st.button(
-                label,
+                f"🔎 {display_topic}",
                 key=f"history_{search_id}",
                 use_container_width=True
             ):
@@ -127,24 +105,7 @@ with st.sidebar:
 
 
 # ============================================================
-# HEADER
-# ============================================================
-
-st.markdown(
-    '<div class="main-title">🔎 Multi-Agent Research System</div>',
-    unsafe_allow_html=True
-)
-
-st.markdown(
-    '<div class="subtitle">'
-    'Tavily + BeautifulSoup + Groq Agents + LCEL'
-    '</div>',
-    unsafe_allow_html=True
-)
-
-
-# ============================================================
-# SHOW PREVIOUS SEARCH
+# PREVIOUS SEARCH
 # ============================================================
 
 if st.session_state.selected_search_id:
@@ -156,182 +117,240 @@ if st.session_state.selected_search_id:
     if previous_search:
 
         st.info(
-            f"📚 Viewing previous research: "
-            f"**{previous_search['topic']}**"
+            f"Viewing: **{previous_search['topic']}**"
         )
 
-        st.caption(
-            f"Created: {previous_search['created_at']}"
-        )
-
-        st.divider()
-
-        # Report
         st.subheader("📄 Research Report")
 
         st.markdown(
-            previous_search["report"] or
-            "No report available."
+            previous_search["report"]
         )
 
-        # Critic
         st.subheader("🧐 Critic Feedback")
 
         with st.expander(
-            "View Critic Feedback",
-            expanded=False
+            "View Critic Feedback"
         ):
 
             st.markdown(
-                previous_search["feedback"] or
-                "No feedback available."
+                previous_search["feedback"]
             )
 
-        # Search results
         with st.expander(
-            "🔎 View Tavily Search Results"
+            "🔎 Tavily Search Results"
         ):
 
             st.write(
-                previous_search["search_results"] or
-                "No search results available."
+                previous_search["search_results"]
             )
 
-        # Scraped content
         with st.expander(
-            "🌐 View Scraped Content"
+            "🌐 Scraped Content"
         ):
 
             st.write(
-                previous_search["scraped_content"] or
-                "No scraped content available."
+                previous_search["scraped_content"]
             )
 
-        st.divider()
-
-        st.download_button(
-            "⬇️ Download Report",
-            data=previous_search["report"],
-            file_name="research_report.txt",
-            mime="text/plain",
-            use_container_width=True
-        )
+    st.stop()
 
 
 # ============================================================
 # NEW RESEARCH
 # ============================================================
 
-else:
+st.subheader("Research Topic")
 
-    st.subheader("Research Topic")
-
-    topic = st.text_area(
-        "What would you like me to research?",
-        height=100,
-        placeholder=(
-            "Example: What is the impact of war "
-            "on the stock market?"
-        )
-    )
-
-    research_button = st.button(
-        "🔍 Start Research",
-        type="primary",
-        use_container_width=True
-    )
-
-    if research_button:
-
-        if not topic.strip():
-
-            st.warning(
-                "Please enter a research topic."
-            )
-
-            st.stop()
-
-        # ----------------------------------------------------
-        # Progress
-        # ----------------------------------------------------
-
-        st.subheader("Research Progress")
-
-        progress = st.progress(0)
-
-        status = st.empty()
-
-        try:
-
-            status.info(
-                "🔎 Search Agent is researching..."
-            )
-
-            progress.progress(20)
-
-            with st.spinner(
-                "Running multi-agent research pipeline..."
-            ):
-
-                result = run_research_pipeline(topic)
-
-            progress.progress(100)
-
-            status.success(
-                "✅ Research completed successfully."
-            )
-
-            # ------------------------------------------------
-            # SAVE TO DATABASE
-            # ------------------------------------------------
-
-            search_id = save_search(
-                topic=topic,
-                search_results=result.get(
-                    "search_results",
-                    ""
-                ),
-                scraped_content=result.get(
-                    "scraped_content",
-                    ""
-                ),
-                report=result.get(
-                    "report",
-                    ""
-                ),
-                feedback=result.get(
-                    "feedback",
-                    ""
-                )
-            )
-
-            # Automatically select the new search
-            st.session_state.selected_search_id = search_id
-
-            st.success(
-                "✅ Research saved to history."
-            )
-
-            st.rerun()
-
-        except Exception as e:
-
-            progress.empty()
-
-            status.error(
-                "❌ Research pipeline failed."
-            )
-
-            st.exception(e)
-
-
-# ============================================================
-# FOOTER
-# ============================================================
-
-st.divider()
-
-st.caption(
-    "Powered by LangChain • LangGraph • Groq • Tavily • BeautifulSoup"
+topic = st.text_area(
+    "What would you like me to research?",
+    placeholder=(
+        "Example: Impact of war on the stock market"
+    ),
+    height=100
 )
 
+
+research_button = st.button(
+    "🔍 Start Research",
+    type="primary",
+    use_container_width=True
+)
+
+
+if research_button:
+
+    if not topic.strip():
+
+        st.warning(
+            "Please enter a research topic."
+        )
+
+        st.stop()
+
+
+    # ========================================================
+    # LIVE STATUS
+    # ========================================================
+
+    st.subheader("⚡ Live Agent Status")
+
+    search_status = st.empty()
+    reader_status = st.empty()
+    writer_status = st.empty()
+    critic_status = st.empty()
+
+
+    status_boxes = {
+        "search": search_status,
+        "reader": reader_status,
+        "writer": writer_status,
+        "critic": critic_status
+    }
+
+
+    def progress_callback(
+        stage,
+        status,
+        message
+    ):
+
+        box = status_boxes[stage]
+
+        if status == "running":
+
+            box.info(
+                f"🔄 **{stage.title()}** — {message}"
+            )
+
+        elif status == "complete":
+
+            box.success(
+                f"✅ **{stage.title()}** — {message}"
+            )
+
+        elif status == "error":
+
+            box.error(
+                f"❌ **{stage.title()}** — {message}"
+            )
+
+
+    try:
+
+        with st.spinner(
+            "Running multi-agent research..."
+        ):
+
+            result = run_research_pipeline(
+                topic,
+                progress_callback=progress_callback
+            )
+
+
+        st.success(
+            "🎉 All agents completed successfully!"
+        )
+
+
+        # ====================================================
+        # SAVE HISTORY
+        # ====================================================
+
+        search_id = save_search(
+            topic=topic,
+            search_results=result.get(
+                "search_results",
+                ""
+            ),
+            scraped_content=result.get(
+                "scraped_content",
+                ""
+            ),
+            report=result.get(
+                "report",
+                ""
+            ),
+            feedback=result.get(
+                "feedback",
+                ""
+            )
+        )
+
+        st.session_state.selected_search_id = search_id
+
+
+        # ====================================================
+        # REPORT
+        # ====================================================
+
+        st.divider()
+
+        st.subheader("📄 Final Research Report")
+
+        st.markdown(
+            result["report"]
+        )
+
+
+        # ====================================================
+        # CRITIC
+        # ====================================================
+
+        st.subheader("🧐 Critic Feedback")
+
+        with st.expander(
+            "View Critic Feedback",
+            expanded=True
+        ):
+
+            st.markdown(
+                result["feedback"]
+            )
+
+
+        # ====================================================
+        # RAW DATA
+        # ====================================================
+
+        with st.expander(
+            "🔎 Tavily Search Results"
+        ):
+
+            st.write(
+                result["search_results"]
+            )
+
+
+        with st.expander(
+            "🌐 BeautifulSoup Content"
+        ):
+
+            st.write(
+                result["scraped_content"]
+            )
+
+
+    except PipelineStageError as e:
+
+        st.error(
+            f"❌ Pipeline stopped at: **{e.stage}**"
+        )
+
+        st.code(
+            f"{type(e.original_error).__name__}: "
+            f"{e.original_error}",
+            language="text"
+        )
+
+        st.warning(
+            "The remaining stages were not executed."
+        )
+
+
+    except Exception as e:
+
+        st.error(
+            "❌ Unexpected pipeline error"
+        )
+
+        st.exception(e)

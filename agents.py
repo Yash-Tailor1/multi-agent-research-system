@@ -10,12 +10,25 @@ load_dotenv()
 
 
 # ============================================================
-# GROQ LLM
+# GROQ MODELS
 # ============================================================
 
-llm = ChatGroq(
+agent_llm = ChatGroq(
     model="openai/gpt-oss-120b",
-    temperature=0
+    temperature=0,
+    max_tokens=1200
+)
+
+writer_llm = ChatGroq(
+    model="openai/gpt-oss-120b",
+    temperature=0,
+    max_tokens=1000
+)
+
+critic_llm = ChatGroq(
+    model="openai/gpt-oss-120b",
+    temperature=0,
+    max_tokens=800
 )
 
 
@@ -24,14 +37,15 @@ llm = ChatGroq(
 # ============================================================
 
 def build_search_agent():
+
     return create_agent(
-        model=llm,
+        model=agent_llm,
         tools=[web_search],
         system_prompt=(
             "You are a professional web research agent. "
-            "Use the web_search tool to find recent, reliable, "
-            "and relevant information about the user's topic. "
-            "Return useful findings and URLs that can be researched further."
+            "Use the web_search tool to find recent, reliable "
+            "and relevant information. "
+            "Return concise findings and relevant URLs."
         ),
         name="search_agent"
     )
@@ -42,22 +56,22 @@ def build_search_agent():
 # ============================================================
 
 def build_reader_agent():
+
     return create_agent(
-        model=llm,
+        model=agent_llm,
         tools=[scrape_url],
         system_prompt=(
-            "You are a professional research reading agent. "
-            "Given search results containing URLs, identify the "
-            "most relevant URL and use the scrape_url tool to read "
-            "the webpage. Extract important facts and information "
-            "relevant to the research topic."
+            "You are a professional research reader. "
+            "Select the most relevant URL from the search results "
+            "and use scrape_url to read it. "
+            "Return only the important facts relevant to the topic."
         ),
         name="reader_agent"
     )
 
 
 # ============================================================
-# WRITER CHAIN - LCEL
+# WRITER CHAIN
 # ============================================================
 
 writer_prompt = ChatPromptTemplate.from_messages([
@@ -66,78 +80,64 @@ writer_prompt = ChatPromptTemplate.from_messages([
         """
 You are an expert research writer.
 
-Write clear, structured, insightful, factual and professional
-research reports.
+Write a clear, factual and professional research report.
+Keep the response concise.
 """
     ),
     (
         "human",
         """
-Write a detailed research report on the topic below.
-
 Topic:
 {topic}
 
-Research Gathered:
+Research:
 {research}
 
-Structure the report as:
+Write:
 
 1. Introduction
-
 2. Key Findings
-   - Minimum 3 well-explained points
-
 3. Conclusion
-
 4. Sources
-   - List all URLs found in the research
 
-Be detailed, factual and professional.
+Do not unnecessarily repeat information.
 """
     )
 ])
 
-writer_chain = writer_prompt | llm | StrOutputParser()
+writer_chain = writer_prompt | writer_llm | StrOutputParser()
 
 
 # ============================================================
-# CRITIC CHAIN - LCEL
+# CRITIC CHAIN
 # ============================================================
 
 critic_prompt = ChatPromptTemplate.from_messages([
     (
         "system",
         """
-You are an expert research report critic.
+You are an expert research critic.
 
-Review the report for:
+Review the report for factual clarity,
+completeness, logical consistency and source usage.
 
-- factual clarity
-- logical consistency
-- completeness
-- quality of explanation
-- missing important information
-- source usage
-
-Give concise and actionable feedback.
+Keep your response concise.
 """
     ),
     (
         "human",
         """
-Review the following research report:
+Review this report:
 
 {report}
 
-Provide:
+Give:
 
-1. Overall assessment
-2. Strengths
-3. Problems or missing information
-4. Specific improvements
+1. Strengths
+2. Problems
+3. Improvements
 """
     )
 ])
 
-critic_chain = critic_prompt | llm | StrOutputParser()
+critic_chain = critic_prompt | critic_llm | StrOutputParser()
